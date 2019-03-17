@@ -49,33 +49,12 @@ impl<T> ThreadWorker<T>
 
 
         let payload = payload.clone();
-        let name_clone = name.clone();
         let _ = thread::Builder::new()
             .name(format!("t:{}", name))
             .spawn(move || -> Result<()> {
                 loop {
-                    let result = catch_unwind(AssertUnwindSafe(|| payload.thread_func()));
-                    let retry_method = catch_unwind(AssertUnwindSafe(|| payload.on_exit(&result)));
-
-                    info!("t:{} <thread_func> exited: <{:?}> retry_method: <{:?}>",
-                          name_clone,
-                          result,
-                          retry_method);
-
-                    match retry_method {
-                        Ok(RetryMethod::Retry { after }) => {
-                            info!("t:{} retry in: {:?}", name_clone, after);
-                            thread::sleep(after);
-                        }
-                        Ok(RetryMethod::Abort) => {
-                            error!("t:{} aborted", name_clone);
-                            break;
-                        }
-                        Err(e) => {
-                            error!("t:{}: <on_exit> panicked: {:?}", name_clone, e);
-                            thread::sleep(Duration::from_millis(DEFAULT_SLEEP));
-                        }
-                    }
+                    payload.thread_func();
+                    break;
                 }
                 payload.handle().set_thread_down();
 
